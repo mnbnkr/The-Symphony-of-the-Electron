@@ -131,12 +131,13 @@
         transition:
           background 0.3s,
           border-color 0.3s;
+        aspect-ratio: 2 / 1; /* Maintains perfect scaling proportions */
       }
 
       canvas {
         display: block;
         width: 100%;
-        height: 600px;
+        height: 100%;
       }
 
       .controls-panel {
@@ -179,6 +180,7 @@
 
       input[type="range"] {
         flex-grow: 1;
+        min-width: 50px;
         accent-color: var(--wave-color);
         cursor: pointer;
         height: 6px;
@@ -187,12 +189,92 @@
       .toggle-group {
         display: flex;
         border-radius: 4px;
-        overflow: hidden;
+        /* Removed overflow: hidden so the tooltip can escape the container */
         border: 1px solid var(--border);
         font-family:
           system-ui,
           -apple-system,
           sans-serif;
+      }
+
+      .toggle-group .toggle-btn:first-child {
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
+      }
+
+      .toggle-group .toggle-btn:last-child {
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+      }
+
+      .zb-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+      }
+
+      #zbText {
+        display: inline-block;
+        width: 155px; /* Locks the exact text width so ON/OFF never shifts layout */
+        text-align: left; /* Anchors the text so it doesn't wiggle inside the button */
+      }
+
+      .info-capsule {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        color: var(--panel);
+        font-size: 12px;
+        font-weight: bold;
+        cursor: help;
+        position: relative;
+      }
+
+      .info-tooltip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: 140%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 260px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: normal;
+        line-height: 1.4;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition:
+          opacity 0.2s,
+          visibility 0.2s;
+        z-index: 10;
+        text-align: left;
+        pointer-events: none;
+      }
+
+      .info-tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -6px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: var(--border) transparent transparent transparent;
+      }
+
+      .info-capsule:hover .info-tooltip {
+        visibility: visible;
+        opacity: 1;
       }
 
       .toggle-btn {
@@ -206,6 +288,10 @@
         transition:
           background 0.2s,
           color 0.2s;
+      }
+
+      .toggle-btn.zb-btn {
+        min-width: 210px; /* Prevents button from changing size when text changes */
       }
 
       .toggle-btn:hover {
@@ -295,6 +381,14 @@
         border-radius: 3px;
         display: inline-block;
         transition: background 0.3s;
+        max-width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none; /* Firefox */
+      }
+
+      .stat-math::-webkit-scrollbar {
+        display: none; /* Chrome */
       }
 
       .c-vp-text {
@@ -350,6 +444,54 @@
       sup {
         font-size: 0.75em;
       }
+
+      /* Mobile & Responsive Adjustments */
+      @media (max-width: 768px) {
+        body {
+          padding: 20px 12px;
+        }
+        h1 {
+          font-size: 1.35rem;
+        }
+        .subtitle {
+          font-size: 1rem;
+          margin-bottom: 24px;
+        }
+        .canvas-container {
+          aspect-ratio: 4 / 3; /* Slightly taller aspect ratio on mobile for better visibility */
+        }
+        .control-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 16px;
+        }
+        .toggle-group {
+          width: 100%;
+          display: flex;
+        }
+        .toggle-btn {
+          flex: 1;
+          padding: 12px 8px;
+          font-size: 0.85rem;
+        }
+        .toggle-btn.zb-btn {
+          min-width: auto; /* Let flex handle it on mobile */
+        }
+        .slider-group {
+          width: 100%;
+        }
+        .controls-panel {
+          padding: 16px;
+          gap: 20px;
+        }
+        .legend {
+          padding: 20px;
+          font-size: 1rem;
+        }
+        .physics-note {
+          font-size: 0.95rem;
+        }
+      }
     </style>
   </head>
   <body>
@@ -372,8 +514,17 @@
           </div>
 
           <div class="toggle-group">
-            <button class="toggle-btn active" id="btnZb">
-              Zitterbewegung: ON
+            <button class="toggle-btn active zb-btn" id="btnZb">
+              <span id="zbText">Zitterbewegung: ON</span>
+              <div class="info-capsule">
+                ?
+                <div class="info-tooltip">
+                  Toggles Dirac's quantum jitter. It physically vibrates the
+                  particle at the speed of light (c) and updates the dashboard
+                  to reveal the true local velocity and local phase velocity,
+                  rather than macroscopic averages.
+                </div>
+              </div>
             </button>
           </div>
 
@@ -385,7 +536,7 @@
               min="0.02"
               max="0.95"
               step="0.001"
-              value="0.4"
+              value="0.5"
             />
             <span
               id="vLabel"
@@ -397,7 +548,7 @@
                 font-size: 1.1rem;
                 color: var(--wave-color);
               "
-              >0.400 <i>c</i></span
+              >0.500 <i>c</i></span
             >
           </div>
 
@@ -409,7 +560,7 @@
               min="0"
               max="2"
               step="0.01"
-              value="0.5"
+              value="0.33"
             />
             <span
               id="timeLabel"
@@ -421,7 +572,7 @@
                 font-variant-numeric: tabular-nums;
                 font-size: 1rem;
               "
-              >0.50x</span
+              >0.33x</span
             >
           </div>
         </div>
@@ -485,7 +636,8 @@
       </div>
 
       <div class="legend">
-        <strong>Understanding the Frames & De Broglie's Evolving Vision:</strong
+        <strong
+          >Understanding the Frames &amp; De Broglie's Evolving Vision:</strong
         ><br /><br />
         <strong>In the Lab Frame:</strong> The laboratory is stationary. The
         electron's macroscopic center moves at <i>v</i>, so its wave envelope is
@@ -499,7 +651,7 @@
 
         <div class="physics-note">
           <strong style="color: var(--wave-color)"
-            >De Broglie's Later Ground Truth (The Double Solution &
+            >De Broglie's Later Ground Truth (The Double Solution &amp;
             Zitterbewegung):</strong
           ><br />
           In his original 1924 thesis, de Broglie treated the electron as
@@ -551,10 +703,10 @@
       const mathSigma = document.getElementById("math-sigma");
       const mathGrid = document.getElementById("math-grid");
 
-      // Physics State Accumulators (Prevents jumping when velocity changes)
+      // Physics State Accumulators
       let lastTime = 0;
       let clockTicks = 0;
-      let electronPos = -1; // -1 indicates uninitialized
+      let electronPos = -1;
       let gridPhaseCenter = 0;
 
       let frameOfReference = "lab";
@@ -568,7 +720,7 @@
       let cachedCamTextWidth = 0;
       let harmonyTextWidth = 0;
       const drawCenters = [];
-      const envCache = new Float32Array(601);
+      const envCache = new Float32Array(521); // Expanded to fit the new CUT_OFF
 
       // Physics Constants
       const f_0 = 4.0;
@@ -576,6 +728,11 @@
       const base_sigma = 180;
       const base_grid = 150;
       const pixelsPerUnit = 250;
+      const CUT_OFF = 520; // Increased for a smoother, longer fade out
+      const COPY_SPACING = 1100; // Increased to space the wave centers further apart
+
+      // Fixed Logical Coordinate System (Ensures perfect proportional scaling)
+      const BASE_WIDTH = 1200;
 
       // Dynamic Canvas Colors
       const COL = {};
@@ -609,9 +766,7 @@
       btnLab.addEventListener("click", () => {
         if (frameOfReference !== "lab") {
           frameOfReference = "lab";
-          // Snap electron to center for a smooth transition from rest frame
-          const dpr = window.devicePixelRatio || 1;
-          electronPos = canvas.width / dpr / 2;
+          electronPos = BASE_WIDTH / 2;
           btnLab.classList.add("active");
           btnElec.classList.remove("active");
         }
@@ -619,7 +774,6 @@
       btnElec.addEventListener("click", () => {
         if (frameOfReference !== "electron") {
           frameOfReference = "electron";
-          // Reset grid phase so a major line centers perfectly on the observer
           gridPhaseCenter = 0;
           btnElec.classList.add("active");
           btnLab.classList.remove("active");
@@ -627,20 +781,17 @@
       });
       btnZb.addEventListener("click", () => {
         isZitterbewegung = !isZitterbewegung;
-        btnZb.textContent = isZitterbewegung
+        document.getElementById("zbText").textContent = isZitterbewegung
           ? "Zitterbewegung: ON"
           : "Zitterbewegung: OFF";
         btnZb.classList.toggle("active", isZitterbewegung);
       });
 
       function resizeCanvas() {
-        const rect = canvas.parentElement.getBoundingClientRect();
+        const parent = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
+        canvas.width = parent.clientWidth * dpr;
+        canvas.height = parent.clientHeight * dpr;
       }
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
@@ -758,8 +909,18 @@
           }
         }
 
-        const width = canvas.width / (window.devicePixelRatio || 1);
-        const height = canvas.height / (window.devicePixelRatio || 1);
+        // Setup Proportional Scaling Context
+        const dpr = window.devicePixelRatio || 1;
+        const clientWidth = canvas.width / dpr;
+        const clientHeight = canvas.height / dpr;
+
+        const scale = clientWidth / BASE_WIDTH;
+        const width = BASE_WIDTH;
+        const height = clientHeight / scale;
+
+        ctx.save();
+        ctx.scale(dpr * scale, dpr * scale);
+
         const centerY = height / 2 - 50;
         const cx = width / 2;
 
@@ -785,22 +946,21 @@
           k = 0;
         }
 
-        // Accumulate phase incrementally to prevent jumping when slider moves
         clockTicks += current_fclock * dt;
         if (clockTicks > 10000) clockTicks -= 10000;
 
         electronPos += elec_v * dt * pixelsPerUnit;
-        electronPos = electronPos % width;
-        if (electronPos < 0) electronPos += width;
+        electronPos = electronPos % COPY_SPACING;
+        if (electronPos < 0) electronPos += COPY_SPACING;
 
-        gridPhaseCenter += (grid_v * dt * pixelsPerUnit) / current_grid_spacing;
+        gridPhaseCenter -= (grid_v * dt * pixelsPerUnit) / current_grid_spacing;
         if (gridPhaseCenter > 10000) gridPhaseCenter -= 10000;
         if (gridPhaseCenter < -10000) gridPhaseCenter += 10000;
 
         ctx.fillStyle = COL.canvasBg;
         ctx.fillRect(0, 0, width, height);
 
-        // --- 1. GRID (Anchored to center to allow smooth relativistic expansion) ---
+        // --- 1. GRID ---
         let n_min = Math.floor(gridPhaseCenter - cx / current_grid_spacing);
         let n_max = Math.ceil(
           gridPhaseCenter + (width - cx) / current_grid_spacing,
@@ -838,13 +998,14 @@
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // --- 3. ELECTRON COPIES (for seamless wrapping) ---
+        // --- 3. ELECTRON COPIES ---
         drawCenters.length = 0;
         if (frameOfReference === "lab") {
           drawCenters.push(
-            electronPos - width,
+            electronPos - COPY_SPACING,
             electronPos,
-            electronPos + width,
+            electronPos + COPY_SPACING,
+            electronPos + 2 * COPY_SPACING,
           );
         } else {
           drawCenters.push(cx);
@@ -856,7 +1017,7 @@
         }
 
         let cacheIdx = 0;
-        for (let dx = -600; dx <= 600; dx += 2) {
+        for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
           envCache[cacheIdx++] = Math.exp(-(dx * dx) / (2 * sigma * sigma));
         }
 
@@ -879,22 +1040,22 @@
 
           ctx.beginPath();
           cacheIdx = 0;
-          for (let dx = -600; dx <= 600; dx += 2) {
+          for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
             let x = particleCenter + dx;
             let env = envCache[cacheIdx++];
             let y = particleCenterY - env * amplitude;
-            if (dx === -600) ctx.moveTo(x, y);
+            if (dx === -CUT_OFF) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
 
           ctx.beginPath();
           cacheIdx = 0;
-          for (let dx = -600; dx <= 600; dx += 2) {
+          for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
             let x = particleCenter + dx;
             let env = envCache[cacheIdx++];
             let y = particleCenterY + env * amplitude;
-            if (dx === -600) ctx.moveTo(x, y);
+            if (dx === -CUT_OFF) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
@@ -903,13 +1064,13 @@
           // --- 3b. CARRIER WAVE ---
           ctx.beginPath();
           cacheIdx = 0;
-          for (let dx = -600; dx <= 600; dx += 2) {
+          for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
             let x = currentCenter + dx;
             let env = envCache[cacheIdx++];
             let phase = k * (dx / pixelsPerUnit) - 2 * Math.PI * clockTicks;
             let wave = Math.cos(phase);
             let y = centerY - env * wave * amplitude;
-            if (dx === -600) ctx.moveTo(x, y);
+            if (dx === -CUT_OFF) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
           ctx.strokeStyle = COL.wave;
@@ -922,11 +1083,11 @@
             ctx.fillStyle = COL.crest;
 
             let n_min_crest = Math.floor(
-              ((k * -600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
+              ((k * -CUT_OFF) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
                 (2 * Math.PI),
             );
             let n_max_crest = Math.ceil(
-              ((k * 600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
+              ((k * CUT_OFF) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
                 (2 * Math.PI),
             );
 
@@ -934,20 +1095,22 @@
               let dx =
                 (pixelsPerUnit * (2 * Math.PI * n + 2 * Math.PI * clockTicks)) /
                 k;
-              let env = Math.exp(-(dx * dx) / (2 * sigma * sigma));
+              if (dx >= -CUT_OFF && dx <= CUT_OFF) {
+                let env = Math.exp(-(dx * dx) / (2 * sigma * sigma));
 
-              if (env > 0.05) {
-                let x_screen = currentCenter + dx;
-                let y_screen = centerY - env * amplitude;
+                if (env > 0.05) {
+                  let x_screen = currentCenter + dx;
+                  let y_screen = centerY - env * amplitude;
 
-                ctx.beginPath();
-                ctx.arc(x_screen, y_screen, 7, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = COL.crestAlpha;
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                  ctx.beginPath();
+                  ctx.arc(x_screen, y_screen, 4.5, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.strokeStyle = COL.crestAlpha;
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
 
-                crestPositions.push({ x: x_screen, y: y_screen, env: env });
+                  crestPositions.push({ x: x_screen, y: y_screen, env: env });
+                }
               }
             }
 
@@ -1199,10 +1362,18 @@
         });
 
         // --- 4. OBSERVER OVERLAY ---
-        const camText =
-          frameOfReference === "electron"
-            ? "Observer: Riding with the Macroscopic Electron (lab contracts & moves)"
-            : "Observer: Stationary in the Lab (electron contracts & moves)";
+        let camText = "";
+        if (width < 650) {
+          camText =
+            frameOfReference === "electron"
+              ? "Observer: Riding with Electron"
+              : "Observer: Stationary in Lab";
+        } else {
+          camText =
+            frameOfReference === "electron"
+              ? "Observer: Riding with the Macroscopic Electron (lab contracts & moves)"
+              : "Observer: Stationary in the Lab (electron contracts & moves)";
+        }
 
         if (camText !== cachedCamText) {
           ctx.font = "bold 14px system-ui, sans-serif";
@@ -1223,6 +1394,7 @@
         ctx.fillStyle = COL.overlayText;
         ctx.fillText(camText, 23, 34);
 
+        ctx.restore(); // Clean up the scale transform for the next frame
         requestAnimationFrame(draw);
       }
 

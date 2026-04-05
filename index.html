@@ -510,8 +510,8 @@
           concluded that the particle is a highly concentrated "singularity"
           guided by a macroscopic pilot wave. <br /><br />
           Integrating Dirac's discoveries, de Broglie associated the electron's
-          internal clock with <strong>Zitterbewegung</strong> – a microscopic,
-          speed-of-light quantum jitter. Because the electron is constantly
+          internal clock with <strong>Zitterbewegung</strong> (a microscopic,
+          speed-of-light quantum jitter). Because the electron is constantly
           jittering at <i>c</i>, it is <em>never truly at rest</em>. The
           macroscopic pilot wave simply becomes a globally synchronized standing
           wave (pulsing all at once, rather than traveling), while the localized
@@ -527,7 +527,7 @@
       const canvas = document.getElementById("simCanvas");
       const ctx = canvas.getContext("2d");
 
-      // UI Elements (Cached to prevent DOM querying during render)
+      // UI Elements
       const vSlider = document.getElementById("vSlider");
       const timeSlider = document.getElementById("timeSlider");
       const vLabel = document.getElementById("vLabel");
@@ -542,7 +542,6 @@
       const btnZb = document.getElementById("btnZb");
       const timeLabel = document.getElementById("timeLabel");
 
-      // Math Formula Elements
       const titleVg = document.querySelector(".c-vg .stat-title");
       const titleVp = document.querySelector(".c-vp .stat-title");
       const mathVg = document.getElementById("math-vg");
@@ -552,36 +551,33 @@
       const mathSigma = document.getElementById("math-sigma");
       const mathGrid = document.getElementById("math-grid");
 
-      // Simulation State
+      // Physics State Accumulators (Prevents jumping when velocity changes)
       let lastTime = 0;
-      let clockTicks = 0; // Phase accumulator (wraps to prevent precision loss)
-      let simTime = 0; // For grid/position (uses modulo, precision not critical)
+      let clockTicks = 0;
+      let electronPos = -1; // -1 indicates uninitialized
+      let gridPhaseCenter = 0;
+
       let frameOfReference = "lab";
       let isZitterbewegung = true;
 
-      // UI State Cache (Crucial for preventing Firefox DOM thrashing)
-      const uiState = {
-        v: null,
-        frame: null,
-        zbw: null,
-        timeSpeed: null,
-      };
+      // UI State Cache
+      const uiState = { v: null, frame: null, zbw: null, timeSpeed: null };
 
-      // Cached text measurements & arrays (Performance optimizations)
+      // Cached text measurements & arrays
       let cachedCamText = "";
       let cachedCamTextWidth = 0;
       let harmonyTextWidth = 0;
       const drawCenters = [];
-      const envCache = new Float32Array(601); // Precomputed envelope cache
+      const envCache = new Float32Array(601);
 
-      // Physics Constants (natural units, c = 1)
+      // Physics Constants
       const f_0 = 4.0;
       const amplitude = 90;
       const base_sigma = 180;
       const base_grid = 150;
       const pixelsPerUnit = 250;
 
-      // Dynamic Canvas Colors (Updated via CSS Variables for Dark Mode)
+      // Dynamic Canvas Colors
       const COL = {};
       function updateColors() {
         const style = getComputedStyle(document.documentElement);
@@ -604,7 +600,6 @@
         COL.arrowAlpha = style.getPropertyValue("--canvas-arrow-alpha").trim();
       }
 
-      // Initialize colors and listen for system theme changes
       updateColors();
       window
         .matchMedia("(prefers-color-scheme: dark)")
@@ -612,14 +607,23 @@
 
       // Toggles
       btnLab.addEventListener("click", () => {
-        frameOfReference = "lab";
-        btnLab.classList.add("active");
-        btnElec.classList.remove("active");
+        if (frameOfReference !== "lab") {
+          frameOfReference = "lab";
+          // Snap electron to center for a smooth transition from rest frame
+          const dpr = window.devicePixelRatio || 1;
+          electronPos = canvas.width / dpr / 2;
+          btnLab.classList.add("active");
+          btnElec.classList.remove("active");
+        }
       });
       btnElec.addEventListener("click", () => {
-        frameOfReference = "electron";
-        btnElec.classList.add("active");
-        btnLab.classList.remove("active");
+        if (frameOfReference !== "electron") {
+          frameOfReference = "electron";
+          // Reset grid phase so a major line centers perfectly on the observer
+          gridPhaseCenter = 0;
+          btnElec.classList.add("active");
+          btnLab.classList.remove("active");
+        }
       });
       btnZb.addEventListener("click", () => {
         isZitterbewegung = !isZitterbewegung;
@@ -676,27 +680,22 @@
       }
 
       function draw(timestamp) {
-        // Use rAF timestamp for smooth frame pacing
         if (!lastTime) lastTime = timestamp;
         const rawDt = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
         const timeSpeed = parseFloat(timeSlider.value);
 
-        // UI Update Cache: Only update Time Label if changed
         if (uiState.timeSpeed !== timeSpeed) {
           uiState.timeSpeed = timeSpeed;
           timeLabel.textContent =
             timeSpeed === 0 ? "Paused" : `${timeSpeed.toFixed(2)}x`;
         }
 
-        // Cap dt to prevent massive jumps when tab is backgrounded
         const dt = Math.min(rawDt, 0.1) * timeSpeed;
-
         const v = parseFloat(vSlider.value);
         const gamma = 1 / Math.sqrt(1 - v * v);
 
-        // UI Update Cache: Only update Dashboard DOM if state actually changed
         if (
           uiState.v !== v ||
           uiState.frame !== frameOfReference ||
@@ -759,50 +758,58 @@
           }
         }
 
-        // Physics variables for the current frame
-        let current_fclock, k, sigma, grid_spacing, grid_v, elec_v;
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const centerY = height / 2 - 50;
+        const cx = width / 2;
+
+        if (electronPos === -1) {
+          electronPos = cx;
+        }
+
+        let current_fclock, k, sigma, current_grid_spacing, grid_v, elec_v;
 
         if (frameOfReference === "lab") {
           elec_v = v;
           grid_v = 0;
-          grid_spacing = base_grid;
+          current_grid_spacing = base_grid;
           sigma = base_sigma / gamma;
           current_fclock = f_0 / gamma;
           k = 2 * Math.PI * gamma * v * f_0;
         } else {
           elec_v = 0;
           grid_v = -v;
-          grid_spacing = base_grid / gamma;
+          current_grid_spacing = base_grid / gamma;
           sigma = base_sigma;
           current_fclock = f_0;
           k = 0;
         }
 
-        // Accumulate phase (bounded to prevent floating-point precision loss)
+        // Accumulate phase incrementally to prevent jumping when slider moves
         clockTicks += current_fclock * dt;
         if (clockTicks > 10000) clockTicks -= 10000;
 
-        // Accumulate simTime for positions (uses modulo in rendering)
-        simTime += dt;
-        if (simTime > 100000) simTime -= 100000;
+        electronPos += elec_v * dt * pixelsPerUnit;
+        electronPos = electronPos % width;
+        if (electronPos < 0) electronPos += width;
 
-        const width = canvas.width / (window.devicePixelRatio || 1);
-        const height = canvas.height / (window.devicePixelRatio || 1);
-        const centerY = height / 2 - 50;
+        gridPhaseCenter += (grid_v * dt * pixelsPerUnit) / current_grid_spacing;
+        if (gridPhaseCenter > 10000) gridPhaseCenter -= 10000;
+        if (gridPhaseCenter < -10000) gridPhaseCenter += 10000;
 
-        // Clear with background fill (avoids compositing transparent pixels)
         ctx.fillStyle = COL.canvasBg;
         ctx.fillRect(0, 0, width, height);
 
-        // --- 1. GRID (batched for performance) ---
-        let gridShift = simTime * grid_v * pixelsPerUnit;
-        let firstLineX = gridShift % grid_spacing;
-        if (firstLineX > 0) firstLineX -= grid_spacing;
+        // --- 1. GRID (Anchored to center to allow smooth relativistic expansion) ---
+        let n_min = Math.floor(gridPhaseCenter - cx / current_grid_spacing);
+        let n_max = Math.ceil(
+          gridPhaseCenter + (width - cx) / current_grid_spacing,
+        );
 
         ctx.beginPath();
-        for (let x = firstLineX; x < width + grid_spacing; x += grid_spacing) {
-          let lineIndex = Math.round((x - gridShift) / grid_spacing);
-          if (lineIndex % 5 !== 0) {
+        for (let n = n_min; n <= n_max; n++) {
+          if (n % 5 !== 0) {
+            let x = cx + (n - gridPhaseCenter) * current_grid_spacing;
             ctx.moveTo(x, 0);
             ctx.lineTo(x, height);
           }
@@ -812,9 +819,9 @@
         ctx.stroke();
 
         ctx.beginPath();
-        for (let x = firstLineX; x < width + grid_spacing; x += grid_spacing) {
-          let lineIndex = Math.round((x - gridShift) / grid_spacing);
-          if (lineIndex % 5 === 0) {
+        for (let n = n_min; n <= n_max; n++) {
+          if (n % 5 === 0) {
+            let x = cx + (n - gridPhaseCenter) * current_grid_spacing;
             ctx.moveTo(x, 0);
             ctx.lineTo(x, height);
           }
@@ -834,40 +841,38 @@
         // --- 3. ELECTRON COPIES (for seamless wrapping) ---
         drawCenters.length = 0;
         if (frameOfReference === "lab") {
-          let ex = (simTime * elec_v * pixelsPerUnit) % width;
-          if (ex < 0) ex += width;
-          drawCenters.push(ex - width, ex, ex + width);
+          drawCenters.push(
+            electronPos - width,
+            electronPos,
+            electronPos + width,
+          );
         } else {
-          drawCenters.push(width / 2);
+          drawCenters.push(cx);
         }
 
-        // Cache Phase Harmony text width once
         if (harmonyTextWidth === 0) {
           ctx.font = "bold 12px Georgia, serif";
           harmonyTextWidth = ctx.measureText("Phase Harmony").width;
         }
 
-        // Precompute Gaussian envelope for this frame (massive performance boost)
         let cacheIdx = 0;
         for (let dx = -600; dx <= 600; dx += 2) {
           envCache[cacheIdx++] = Math.exp(-(dx * dx) / (2 * sigma * sigma));
         }
 
         drawCenters.forEach((currentCenter) => {
-          // Zitterbewegung (quantum jitter)
           let zbX = 0;
           let zbY = 0;
           if (isZitterbewegung) {
-            const zbPhase = 4 * Math.PI * clockTicks; // 2x clock frequency
+            const zbPhase = 4 * Math.PI * clockTicks;
             zbX = Math.cos(zbPhase) * 2.5;
             zbY = Math.sin(zbPhase) * 2.5;
           }
 
-          // The physical particle (singularity) jitters
           let particleCenter = currentCenter + zbX;
           let particleCenterY = centerY + zbY;
 
-          // --- 3a. ENVELOPE (upper + lower, dashed) ---
+          // --- 3a. ENVELOPE ---
           ctx.strokeStyle = COL.envelope;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([8, 6]);
@@ -895,7 +900,7 @@
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // --- 3b. CARRIER WAVE (de Broglie macroscopic pilot wave) ---
+          // --- 3b. CARRIER WAVE ---
           ctx.beginPath();
           cacheIdx = 0;
           for (let dx = -600; dx <= 600; dx += 2) {
@@ -911,21 +916,21 @@
           ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          // --- 3c. PHASE CRESTS / STANDING WAVE LABEL ---
+          // --- 3c. PHASE CRESTS ---
           if (frameOfReference === "lab") {
             let crestPositions = [];
             ctx.fillStyle = COL.crest;
 
-            let n_min = Math.floor(
+            let n_min_crest = Math.floor(
               ((k * -600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
                 (2 * Math.PI),
             );
-            let n_max = Math.ceil(
+            let n_max_crest = Math.ceil(
               ((k * 600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
                 (2 * Math.PI),
             );
 
-            for (let n = n_min; n <= n_max; n++) {
+            for (let n = n_min_crest; n <= n_max_crest; n++) {
               let dx =
                 (pixelsPerUnit * (2 * Math.PI * n + 2 * Math.PI * clockTicks)) /
                 k;

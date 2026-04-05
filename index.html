@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Symphony of the Electron</title>
+    <style>
+      :root {
+        /* Light Mode - Vintage Scientific Paper */
+        --bg: #ece5d5;
+        --panel: #f5f0e6;
+        --border: #c5b99a;
+        --canvas-bg: #f8f5ed;
+        --text: #2c2416;
+        --text-muted: #6b5d4a;
+
+        --wave-color: #2456a4;
+        --vp-color: #b37714;
+        --clock-color: #a03030;
+        --vg-color: #2c2416;
+        --sigma-color: #6b4c8a;
+        --grid-color: #5a8c5a;
+        --math-bg: #e8e0ce;
+
+        --canvas-grid-minor: rgba(90, 140, 90, 0.18);
+        --canvas-grid-major: rgba(90, 140, 90, 0.45);
+        --canvas-axis: rgba(44, 36, 22, 0.1);
+        --canvas-envelope: rgba(100, 90, 75, 0.5);
+        --canvas-sync: rgba(160, 48, 48, 0.55);
+        --canvas-pill-bg: rgba(248, 245, 237, 0.92);
+        --canvas-pill-border: rgba(197, 185, 155, 0.5);
+        --canvas-crest-alpha: rgba(179, 119, 20, 0.4);
+        --canvas-arrow-alpha: rgba(44, 36, 22, 0.25);
+
+        --btn-hover: rgba(36, 86, 164, 0.08);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          /* Dark Mode - Vintage Chalkboard / Slate */
+          --bg: #1c1a17;
+          --panel: #26231f;
+          --border: #423d36;
+          --canvas-bg: #1f1c19;
+          --text: #dcd3c6;
+          --text-muted: #a39b8e;
+
+          --wave-color: #6a9ce6;
+          --vp-color: #d6a147;
+          --clock-color: #d96868;
+          --vg-color: #dcd3c6;
+          --sigma-color: #a888c9;
+          --grid-color: #6fa86f;
+          --math-bg: #332f2a;
+
+          --canvas-grid-minor: rgba(111, 168, 111, 0.15);
+          --canvas-grid-major: rgba(111, 168, 111, 0.35);
+          --canvas-axis: rgba(220, 211, 198, 0.15);
+          --canvas-envelope: rgba(163, 155, 142, 0.45);
+          --canvas-sync: rgba(217, 104, 104, 0.55);
+          --canvas-pill-bg: rgba(31, 28, 25, 0.92);
+          --canvas-pill-border: rgba(66, 61, 54, 0.8);
+          --canvas-crest-alpha: rgba(214, 161, 71, 0.4);
+          --canvas-arrow-alpha: rgba(220, 211, 198, 0.3);
+
+          --btn-hover: rgba(106, 156, 230, 0.12);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 36px 20px;
+        font-family:
+          Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif;
+        transition:
+          background 0.3s,
+          color 0.3s;
+      }
+
+      h1 {
+        color: var(--text);
+        margin-bottom: 8px;
+        text-align: center;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        font-size: 1.65rem;
+      }
+
+      .title-rule {
+        width: 80px;
+        border: none;
+        border-top: 1.5px solid var(--text-muted);
+        margin: 6px auto 12px;
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        margin-bottom: 32px;
+        text-align: center;
+        font-size: 1.15rem;
+        font-style: italic;
+      }
+
+      .app-container {
+        width: 100%;
+        max-width: 1300px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .canvas-container {
+        width: 100%;
+        background: var(--canvas-bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        transition:
+          background 0.3s,
+          border-color 0.3s;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 600px;
+      }
+
+      .controls-panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition:
+          background 0.3s,
+          border-color 0.3s;
+      }
+
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+
+      .slider-group {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: var(--btn-hover);
+        padding: 14px 18px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        font-size: 1rem;
+      }
+
+      input[type="range"] {
+        flex-grow: 1;
+        accent-color: var(--wave-color);
+        cursor: pointer;
+        height: 6px;
+      }
+
+      .toggle-group {
+        display: flex;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+
+      .toggle-btn {
+        background: var(--panel);
+        color: var(--text);
+        border: none;
+        padding: 12px 24px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition:
+          background 0.2s,
+          color 0.2s;
+      }
+
+      .toggle-btn:hover {
+        background: var(--btn-hover);
+      }
+
+      .toggle-btn.active {
+        background: var(--wave-color);
+        color: #fff;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+        gap: 16px;
+      }
+
+      .stat-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 18px 16px 18px 20px;
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.04);
+        transition:
+          background 0.3s,
+          border-color 0.3s;
+      }
+
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--wave-color);
+      }
+
+      .stat-card.c-vp::before {
+        background: var(--vp-color);
+      }
+      .stat-card.c-clock::before {
+        background: var(--clock-color);
+      }
+      .stat-card.c-vg::before {
+        background: var(--vg-color);
+      }
+      .stat-card.c-sigma::before {
+        background: var(--sigma-color);
+      }
+      .stat-card.c-grid::before {
+        background: var(--grid-color);
+      }
+
+      .stat-title {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+
+      .stat-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        margin-bottom: 8px;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+
+      .stat-math {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        font-family: "Courier New", Courier, monospace;
+        background: var(--math-bg);
+        padding: 4px 8px;
+        border-radius: 3px;
+        display: inline-block;
+        transition: background 0.3s;
+      }
+
+      .c-vp-text {
+        color: var(--vp-color);
+      }
+      .c-clock-text {
+        color: var(--clock-color);
+      }
+      .c-vg-text {
+        color: var(--vg-color);
+      }
+      .c-wave-text {
+        color: var(--wave-color);
+      }
+      .c-sigma-text {
+        color: var(--sigma-color);
+      }
+      .c-grid-text {
+        color: var(--grid-color);
+      }
+
+      .legend {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 28px 32px;
+        border-radius: 4px;
+        line-height: 1.75;
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition:
+          background 0.3s,
+          border-color 0.3s;
+      }
+
+      .legend strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .physics-note {
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        font-size: 1.05rem;
+      }
+
+      i {
+        font-family: "Times New Roman", Times, serif;
+        font-style: italic;
+      }
+      sub,
+      sup {
+        font-size: 0.75em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>The Symphony of the Electron</h1>
+    <hr class="title-rule" />
+    <div class="subtitle">
+      De Broglie's Phase Harmony & True Lorentz Transformations
+    </div>
+
+    <div class="app-container">
+      <div class="canvas-container">
+        <canvas id="simCanvas"></canvas>
+      </div>
+
+      <div class="controls-panel">
+        <div class="control-row">
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="btnLab">Lab Frame</button>
+            <button class="toggle-btn" id="btnElec">Electron Rest Frame</button>
+          </div>
+
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="btnZb">
+              Zitterbewegung: ON
+            </button>
+          </div>
+
+          <div class="slider-group" style="flex-grow: 2">
+            <label for="vSlider"><strong>Velocity (<i>v</i>):</strong></label>
+            <input
+              type="range"
+              id="vSlider"
+              min="0.02"
+              max="0.95"
+              step="0.001"
+              value="0.4"
+            />
+            <span
+              id="vLabel"
+              style="
+                min-width: 75px;
+                text-align: right;
+                font-weight: bold;
+                font-variant-numeric: tabular-nums;
+                font-size: 1.1rem;
+                color: var(--wave-color);
+              "
+              >0.400 <i>c</i></span
+            >
+          </div>
+
+          <div class="slider-group" style="flex-grow: 1">
+            <label for="timeSlider"><strong>Time Speed:</strong></label>
+            <input
+              type="range"
+              id="timeSlider"
+              min="0"
+              max="2"
+              step="0.01"
+              value="0.5"
+            />
+            <span
+              id="timeLabel"
+              style="
+                width: 62px;
+                flex-shrink: 0;
+                text-align: right;
+                font-weight: bold;
+                font-variant-numeric: tabular-nums;
+                font-size: 1rem;
+              "
+              >0.50x</span
+            >
+          </div>
+        </div>
+
+        <div class="dashboard">
+          <div class="stat-card c-vg">
+            <div class="stat-title">
+              Local Vel. (<i>v<sub>local</sub></i
+              >)
+            </div>
+            <div class="stat-value c-vg-text" id="vgVal">1.00 <i>c</i></div>
+            <div class="stat-math" id="math-vg">
+              <i>v<sub>local</sub> = c</i>
+            </div>
+          </div>
+          <div class="stat-card c-vp">
+            <div class="stat-title">
+              Local Phase Vel. (<i>v<sub>p</sub></i
+              >)
+            </div>
+            <div class="stat-value c-vp-text" id="vpVal">1.00 <i>c</i></div>
+            <div class="stat-math" id="math-vp">
+              <i>v<sub>p</sub> = c&sup2; / c = c</i>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">
+              Wave Freq. (<i>f<sub>wave</sub></i
+              >)
+            </div>
+            <div class="stat-value c-wave-text" id="fwaveVal">4.36 Hz</div>
+            <div class="stat-math" id="math-fwave">
+              <i>f<sub>wave</sub> = f<sub>0</sub> &times; &gamma;</i>
+            </div>
+          </div>
+          <div class="stat-card c-clock">
+            <div class="stat-title">
+              Clock Freq. (<i>f<sub>clock</sub></i
+              >)
+            </div>
+            <div class="stat-value c-clock-text" id="fclockVal">3.67 Hz</div>
+            <div class="stat-math" id="math-fclock">
+              <i>f<sub>clock</sub> = f<sub>0</sub> / &gamma;</i>
+            </div>
+          </div>
+          <div class="stat-card c-sigma">
+            <div class="stat-title">Electron Width (&sigma;)</div>
+            <div class="stat-value c-sigma-text" id="sigmaVal">91.6%</div>
+            <div class="stat-math" id="math-sigma">
+              <i>&sigma; = &sigma;<sub>0</sub> / &gamma;</i>
+            </div>
+          </div>
+          <div class="stat-card c-grid">
+            <div class="stat-title">Lab Grid Spacing</div>
+            <div class="stat-value c-grid-text" id="gridVal">100.0%</div>
+            <div class="stat-math" id="math-grid">
+              <i>L = L<sub>0</sub></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <strong>Understanding the Frames & De Broglie's Evolving Vision:</strong
+        ><br /><br />
+        <strong>In the Lab Frame:</strong> The laboratory is stationary. The
+        electron's macroscopic center moves at <i>v</i>, so its wave envelope is
+        Lorentz-contracted, its internal clock is time-dilated, and its wave
+        vibrates at a higher frequency. The superluminal phase crests travel at
+        <i>c&sup2;/v</i> to maintain phase harmony.<br /><br />
+        <strong>In the Electron Rest Frame:</strong> The electron's
+        <em>macroscopic</em> velocity is zero. The laboratory flies backward at
+        &minus;<i>v</i>. With no macroscopic spatial motion, the guiding pilot
+        wave becomes a standing oscillation.<br />
+
+        <div class="physics-note">
+          <strong style="color: var(--wave-color)"
+            >De Broglie's Later Ground Truth (The Double Solution &
+            Zitterbewegung):</strong
+          ><br />
+          In his original 1924 thesis, de Broglie treated the electron as
+          perfectly at rest, yielding a strictly infinite phase velocity (<i
+            >v<sub>p</sub> = c&sup2;/0 = &infin;</i
+          >). However, he later realized this was physically impossible. In his
+          mature <strong>Theory of the Double Solution (1927)</strong>, he
+          concluded that the particle is a highly concentrated "singularity"
+          guided by a macroscopic pilot wave. <br /><br />
+          Integrating Dirac's discoveries, de Broglie associated the electron's
+          internal clock with <strong>Zitterbewegung</strong> - a microscopic,
+          speed-of-light quantum jitter. Because the electron is constantly
+          jittering at <i>c</i>, it is <em>never truly at rest</em>. The
+          macroscopic pilot wave simply becomes a globally synchronized standing
+          wave (pulsing all at once, rather than traveling), while the localized
+          physical particle always has an instantaneous velocity of <i>c</i>.
+          Therefore, its true local phase velocity is always exactly
+          <i>c</i> (<i>v<sub>p</sub> = c&sup2;/c = c</i>). Toggle Zitterbewegung
+          to see the math physically update!
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // UI Elements (Cached to prevent DOM querying during render)
+      const vSlider = document.getElementById("vSlider");
+      const timeSlider = document.getElementById("timeSlider");
+      const vLabel = document.getElementById("vLabel");
+      const vgVal = document.getElementById("vgVal");
+      const vpVal = document.getElementById("vpVal");
+      const fwaveVal = document.getElementById("fwaveVal");
+      const fclockVal = document.getElementById("fclockVal");
+      const sigmaVal = document.getElementById("sigmaVal");
+      const gridVal = document.getElementById("gridVal");
+      const btnLab = document.getElementById("btnLab");
+      const btnElec = document.getElementById("btnElec");
+      const btnZb = document.getElementById("btnZb");
+      const timeLabel = document.getElementById("timeLabel");
+
+      // Math Formula Elements
+      const titleVg = document.querySelector(".c-vg .stat-title");
+      const titleVp = document.querySelector(".c-vp .stat-title");
+      const mathVg = document.getElementById("math-vg");
+      const mathVp = document.getElementById("math-vp");
+      const mathFwave = document.getElementById("math-fwave");
+      const mathFclock = document.getElementById("math-fclock");
+      const mathSigma = document.getElementById("math-sigma");
+      const mathGrid = document.getElementById("math-grid");
+
+      // Simulation State
+      let lastTime = 0;
+      let clockTicks = 0; // Phase accumulator (wraps to prevent precision loss)
+      let simTime = 0; // For grid/position (uses modulo, precision not critical)
+      let frameOfReference = "lab";
+      let isZitterbewegung = true;
+
+      // UI State Cache (Crucial for preventing Firefox DOM thrashing)
+      const uiState = {
+        v: null,
+        frame: null,
+        zbw: null,
+        timeSpeed: null,
+      };
+
+      // Cached text measurements & arrays (Performance optimizations)
+      let cachedCamText = "";
+      let cachedCamTextWidth = 0;
+      let harmonyTextWidth = 0;
+      const drawCenters = [];
+      const envCache = new Float32Array(601); // Precomputed envelope cache
+
+      // Physics Constants (natural units, c = 1)
+      const f_0 = 4.0;
+      const amplitude = 90;
+      const base_sigma = 180;
+      const base_grid = 150;
+      const pixelsPerUnit = 250;
+
+      // Dynamic Canvas Colors (Updated via CSS Variables for Dark Mode)
+      const COL = {};
+      function updateColors() {
+        const style = getComputedStyle(document.documentElement);
+        COL.canvasBg = style.getPropertyValue("--canvas-bg").trim();
+        COL.gridMinor = style.getPropertyValue("--canvas-grid-minor").trim();
+        COL.gridMajor = style.getPropertyValue("--canvas-grid-major").trim();
+        COL.axis = style.getPropertyValue("--canvas-axis").trim();
+        COL.envelope = style.getPropertyValue("--canvas-envelope").trim();
+        COL.wave = style.getPropertyValue("--wave-color").trim();
+        COL.crest = style.getPropertyValue("--vp-color").trim();
+        COL.clock = style.getPropertyValue("--clock-color").trim();
+        COL.vg = style.getPropertyValue("--vg-color").trim();
+        COL.sync = style.getPropertyValue("--canvas-sync").trim();
+        COL.syncDot = style.getPropertyValue("--clock-color").trim();
+        COL.pillBg = style.getPropertyValue("--canvas-pill-bg").trim();
+        COL.pillBorder = style.getPropertyValue("--canvas-pill-border").trim();
+        COL.labelText = style.getPropertyValue("--text").trim();
+        COL.overlayText = style.getPropertyValue("--text").trim();
+        COL.crestAlpha = style.getPropertyValue("--canvas-crest-alpha").trim();
+        COL.arrowAlpha = style.getPropertyValue("--canvas-arrow-alpha").trim();
+      }
+
+      // Initialize colors and listen for system theme changes
+      updateColors();
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", updateColors);
+
+      // Toggles
+      btnLab.addEventListener("click", () => {
+        frameOfReference = "lab";
+        btnLab.classList.add("active");
+        btnElec.classList.remove("active");
+      });
+      btnElec.addEventListener("click", () => {
+        frameOfReference = "electron";
+        btnElec.classList.add("active");
+        btnLab.classList.remove("active");
+      });
+      btnZb.addEventListener("click", () => {
+        isZitterbewegung = !isZitterbewegung;
+        btnZb.textContent = isZitterbewegung
+          ? "Zitterbewegung: ON"
+          : "Zitterbewegung: OFF";
+        btnZb.classList.toggle("active", isZitterbewegung);
+      });
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      function drawArrow(x, y, length, color, baseText, subText) {
+        const headlen = 10;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + length, y);
+        ctx.lineTo(x + length - headlen, y - headlen / 2);
+        ctx.moveTo(x + length, y);
+        ctx.lineTo(x + length - headlen, y + headlen / 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.font = "italic bold 15px Georgia, serif";
+        const baseWidth = ctx.measureText(baseText).width;
+        ctx.font = "bold 11px Georgia, serif";
+        const subWidth = ctx.measureText(subText).width;
+        const totalWidth = baseWidth + subWidth;
+
+        const pillX = x + length + 10;
+        ctx.fillStyle = COL.pillBg;
+        ctx.beginPath();
+        ctx.roundRect(pillX, y - 13, totalWidth + 14, 26, 4);
+        ctx.fill();
+        ctx.strokeStyle = COL.pillBorder;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.font = "italic bold 15px Georgia, serif";
+        ctx.fillText(baseText, pillX + 6, y + 5);
+        ctx.font = "bold 11px Georgia, serif";
+        ctx.fillText(subText, pillX + 6 + baseWidth + 1, y + 8);
+      }
+
+      function draw(timestamp) {
+        // Use rAF timestamp for smooth frame pacing
+        if (!lastTime) lastTime = timestamp;
+        const rawDt = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        const timeSpeed = parseFloat(timeSlider.value);
+
+        // UI Update Cache: Only update Time Label if changed
+        if (uiState.timeSpeed !== timeSpeed) {
+          uiState.timeSpeed = timeSpeed;
+          timeLabel.textContent =
+            timeSpeed === 0 ? "Paused" : `${timeSpeed.toFixed(2)}x`;
+        }
+
+        // Cap dt to prevent massive jumps when tab is backgrounded
+        const dt = Math.min(rawDt, 0.1) * timeSpeed;
+
+        const v = parseFloat(vSlider.value);
+        const gamma = 1 / Math.sqrt(1 - v * v);
+
+        // UI Update Cache: Only update Dashboard DOM if state actually changed
+        if (
+          uiState.v !== v ||
+          uiState.frame !== frameOfReference ||
+          uiState.zbw !== isZitterbewegung
+        ) {
+          uiState.v = v;
+          uiState.frame = frameOfReference;
+          uiState.zbw = isZitterbewegung;
+
+          if (isZitterbewegung) {
+            titleVg.innerHTML = `Local Vel. (<i>v<sub>local</sub></i>)`;
+            titleVp.innerHTML = `Local Phase Vel. (<i>v<sub>p</sub></i>)`;
+          } else {
+            titleVg.innerHTML = `Macroscopic Vel. (<i>v<sub>g</sub></i>)`;
+            titleVp.innerHTML = `Phase Vel. (<i>v<sub>p</sub></i>)`;
+          }
+
+          vLabel.innerHTML = `${v.toFixed(3)} <i>c</i>`;
+
+          if (frameOfReference === "lab") {
+            if (isZitterbewegung) {
+              vgVal.innerHTML = `1.00 <i>c</i>`;
+              vpVal.innerHTML = `1.00 <i>c</i>`;
+              mathVg.innerHTML = `<i>v<sub>local</sub> = c</i>`;
+              mathVp.innerHTML = `<i>v<sub>p</sub> = c&sup2; / c = c</i>`;
+            } else {
+              vgVal.innerHTML = `${v.toFixed(2)} <i>c</i>`;
+              vpVal.innerHTML = `${(1 / v).toFixed(2)} <i>c</i>`;
+              mathVg.innerHTML = `<i>v<sub>g</sub> = v<sub>macro</sub></i>`;
+              mathVp.innerHTML = `<i>v<sub>p</sub> = c&sup2; / v<sub>macro</sub></i>`;
+            }
+            fwaveVal.innerHTML = `${(gamma * f_0).toFixed(2)} Hz`;
+            fclockVal.innerHTML = `${(f_0 / gamma).toFixed(2)} Hz`;
+            sigmaVal.innerHTML = `${(100 / gamma).toFixed(1)}%`;
+            gridVal.innerHTML = `100.0%`;
+            mathFwave.innerHTML = `<i>f<sub>wave</sub> = f<sub>0</sub> &times; &gamma;</i>`;
+            mathFclock.innerHTML = `<i>f<sub>clock</sub> = f<sub>0</sub> / &gamma;</i>`;
+            mathSigma.innerHTML = `<i>&sigma; = &sigma;<sub>0</sub> / &gamma;</i>`;
+            mathGrid.innerHTML = `<i>L = L<sub>0</sub></i>`;
+          } else {
+            if (isZitterbewegung) {
+              vgVal.innerHTML = `1.00 <i>c</i>`;
+              vpVal.innerHTML = `1.00 <i>c</i>`;
+              mathVg.innerHTML = `<i>v<sub>local</sub> = c</i>`;
+              mathVp.innerHTML = `<i>v<sub>p</sub> = c&sup2; / c = c</i>`;
+            } else {
+              vgVal.innerHTML = `0.00 <i>c</i>`;
+              vpVal.innerHTML = `&infin;`;
+              mathVg.innerHTML = `<i>v<sub>g</sub> = 0</i>`;
+              mathVp.innerHTML = `<i>v<sub>p</sub> = &infin;</i>`;
+            }
+            fwaveVal.innerHTML = `${f_0.toFixed(2)} Hz`;
+            fclockVal.innerHTML = `${f_0.toFixed(2)} Hz`;
+            sigmaVal.innerHTML = `100.0%`;
+            gridVal.innerHTML = `${(100 / gamma).toFixed(1)}%`;
+            mathFwave.innerHTML = `<i>f<sub>wave</sub> = f<sub>0</sub></i>`;
+            mathFclock.innerHTML = `<i>f<sub>clock</sub> = f<sub>0</sub></i>`;
+            mathSigma.innerHTML = `<i>&sigma; = &sigma;<sub>0</sub></i>`;
+            mathGrid.innerHTML = `<i>L = L<sub>0</sub> / &gamma;</i>`;
+          }
+        }
+
+        // Physics variables for the current frame
+        let current_fclock, k, sigma, grid_spacing, grid_v, elec_v;
+
+        if (frameOfReference === "lab") {
+          elec_v = v;
+          grid_v = 0;
+          grid_spacing = base_grid;
+          sigma = base_sigma / gamma;
+          current_fclock = f_0 / gamma;
+          k = 2 * Math.PI * gamma * v * f_0;
+        } else {
+          elec_v = 0;
+          grid_v = -v;
+          grid_spacing = base_grid / gamma;
+          sigma = base_sigma;
+          current_fclock = f_0;
+          k = 0;
+        }
+
+        // Accumulate phase (bounded to prevent floating-point precision loss)
+        clockTicks += current_fclock * dt;
+        if (clockTicks > 10000) clockTicks -= 10000;
+
+        // Accumulate simTime for positions (uses modulo in rendering)
+        simTime += dt;
+        if (simTime > 100000) simTime -= 100000;
+
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const centerY = height / 2 - 50;
+
+        // Clear with background fill (avoids compositing transparent pixels)
+        ctx.fillStyle = COL.canvasBg;
+        ctx.fillRect(0, 0, width, height);
+
+        // --- 1. GRID (batched for performance) ---
+        let gridShift = simTime * grid_v * pixelsPerUnit;
+        let firstLineX = gridShift % grid_spacing;
+        if (firstLineX > 0) firstLineX -= grid_spacing;
+
+        ctx.beginPath();
+        for (let x = firstLineX; x < width + grid_spacing; x += grid_spacing) {
+          let lineIndex = Math.round((x - gridShift) / grid_spacing);
+          if (lineIndex % 5 !== 0) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+          }
+        }
+        ctx.strokeStyle = COL.gridMinor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        for (let x = firstLineX; x < width + grid_spacing; x += grid_spacing) {
+          let lineIndex = Math.round((x - gridShift) / grid_spacing);
+          if (lineIndex % 5 === 0) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+          }
+        }
+        ctx.strokeStyle = COL.gridMajor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // --- 2. CENTER AXIS ---
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(width, centerY);
+        ctx.strokeStyle = COL.axis;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // --- 3. ELECTRON COPIES (for seamless wrapping) ---
+        drawCenters.length = 0;
+        if (frameOfReference === "lab") {
+          let ex = (simTime * elec_v * pixelsPerUnit) % width;
+          if (ex < 0) ex += width;
+          drawCenters.push(ex - width, ex, ex + width);
+        } else {
+          drawCenters.push(width / 2);
+        }
+
+        // Cache Phase Harmony text width once
+        if (harmonyTextWidth === 0) {
+          ctx.font = "bold 12px Georgia, serif";
+          harmonyTextWidth = ctx.measureText("Phase Harmony").width;
+        }
+
+        // Precompute Gaussian envelope for this frame (massive performance boost)
+        let cacheIdx = 0;
+        for (let dx = -600; dx <= 600; dx += 2) {
+          envCache[cacheIdx++] = Math.exp(-(dx * dx) / (2 * sigma * sigma));
+        }
+
+        drawCenters.forEach((currentCenter) => {
+          // Zitterbewegung (quantum jitter)
+          let zbX = 0;
+          let zbY = 0;
+          if (isZitterbewegung) {
+            const zbPhase = 4 * Math.PI * clockTicks; // 2x clock frequency
+            zbX = Math.cos(zbPhase) * 2.5;
+            zbY = Math.sin(zbPhase) * 2.5;
+          }
+
+          // The physical particle (singularity) jitters
+          let particleCenter = currentCenter + zbX;
+          let particleCenterY = centerY + zbY;
+
+          // --- 3a. ENVELOPE (upper + lower, dashed) ---
+          ctx.strokeStyle = COL.envelope;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([8, 6]);
+
+          ctx.beginPath();
+          cacheIdx = 0;
+          for (let dx = -600; dx <= 600; dx += 2) {
+            let x = particleCenter + dx;
+            let env = envCache[cacheIdx++];
+            let y = particleCenterY - env * amplitude;
+            if (dx === -600) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+
+          ctx.beginPath();
+          cacheIdx = 0;
+          for (let dx = -600; dx <= 600; dx += 2) {
+            let x = particleCenter + dx;
+            let env = envCache[cacheIdx++];
+            let y = particleCenterY + env * amplitude;
+            if (dx === -600) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // --- 3b. CARRIER WAVE (de Broglie macroscopic pilot wave) ---
+          ctx.beginPath();
+          cacheIdx = 0;
+          for (let dx = -600; dx <= 600; dx += 2) {
+            let x = currentCenter + dx;
+            let env = envCache[cacheIdx++];
+            let phase = k * (dx / pixelsPerUnit) - 2 * Math.PI * clockTicks;
+            let wave = Math.cos(phase);
+            let y = centerY - env * wave * amplitude;
+            if (dx === -600) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = COL.wave;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // --- 3c. PHASE CRESTS / STANDING WAVE LABEL ---
+          if (frameOfReference === "lab") {
+            let crestPositions = [];
+            ctx.fillStyle = COL.crest;
+
+            let n_min = Math.floor(
+              ((k * -600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
+                (2 * Math.PI),
+            );
+            let n_max = Math.ceil(
+              ((k * 600) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
+                (2 * Math.PI),
+            );
+
+            for (let n = n_min; n <= n_max; n++) {
+              let dx =
+                (pixelsPerUnit * (2 * Math.PI * n + 2 * Math.PI * clockTicks)) /
+                k;
+              let env = Math.exp(-(dx * dx) / (2 * sigma * sigma));
+
+              if (env > 0.05) {
+                let x_screen = currentCenter + dx;
+                let y_screen = centerY - env * amplitude;
+
+                ctx.beginPath();
+                ctx.arc(x_screen, y_screen, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = COL.crestAlpha;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                crestPositions.push({ x: x_screen, y: y_screen, env: env });
+              }
+            }
+
+            // --- 3d. WAVELENGTH BRACKET ---
+            if (crestPositions.length >= 2) {
+              let bestPair = null;
+              let bestDist = Infinity;
+              for (let i = 0; i < crestPositions.length - 1; i++) {
+                let midX = (crestPositions[i].x + crestPositions[i + 1].x) / 2;
+                let dist = Math.abs(midX - currentCenter);
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestPair = [crestPositions[i], crestPositions[i + 1]];
+                }
+              }
+
+              if (bestPair) {
+                let [c1, c2] = bestPair;
+                let spacing = c2.x - c1.x;
+
+                if (spacing > 35 && spacing < 400) {
+                  let bracketY = centerY + 20;
+
+                  ctx.beginPath();
+                  ctx.moveTo(c1.x, bracketY - 4);
+                  ctx.lineTo(c1.x, bracketY);
+                  ctx.lineTo(c2.x, bracketY);
+                  ctx.lineTo(c2.x, bracketY - 4);
+                  ctx.strokeStyle = COL.crest;
+                  ctx.lineWidth = 1.5;
+                  ctx.stroke();
+
+                  ctx.beginPath();
+                  ctx.moveTo(c1.x + 5, bracketY - 3);
+                  ctx.lineTo(c1.x, bracketY);
+                  ctx.lineTo(c1.x + 5, bracketY + 3);
+                  ctx.moveTo(c2.x - 5, bracketY - 3);
+                  ctx.lineTo(c2.x, bracketY);
+                  ctx.lineTo(c2.x - 5, bracketY + 3);
+                  ctx.stroke();
+
+                  ctx.fillStyle = COL.crest;
+                  ctx.font = "italic 14px Georgia, serif";
+                  ctx.textAlign = "center";
+                  let lx = (c1.x + c2.x) / 2;
+                  ctx.fillText("\u03BB", lx - 5, bracketY + 17);
+                  ctx.font = "10px Georgia, serif";
+                  ctx.fillText("dB", lx + 5, bracketY + 17);
+                  ctx.textAlign = "left";
+                }
+              }
+            }
+
+            // --- 3e. VELOCITY ARROWS ---
+            ctx.beginPath();
+            ctx.moveTo(currentCenter, centerY - amplitude);
+            ctx.lineTo(currentCenter, centerY - amplitude - 50);
+            ctx.strokeStyle = COL.arrowAlpha;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (isZitterbewegung) {
+              drawArrow(
+                currentCenter,
+                centerY - amplitude - 50,
+                150,
+                COL.vg,
+                "v",
+                "local",
+              );
+            } else {
+              drawArrow(
+                currentCenter,
+                centerY - amplitude - 50,
+                v * 150,
+                COL.vg,
+                "v",
+                "macro",
+              );
+            }
+
+            if (crestPositions.length > 0) {
+              let closestCrest = crestPositions[0];
+              let minDist = Math.abs(closestCrest.x - currentCenter);
+              for (let i = 1; i < crestPositions.length; i++) {
+                let dist = Math.abs(crestPositions[i].x - currentCenter);
+                if (dist < minDist) {
+                  minDist = dist;
+                  closestCrest = crestPositions[i];
+                }
+              }
+              let visual_vp_length = isZitterbewegung
+                ? 150
+                : Math.min((1 / v) * 150, 350);
+              drawArrow(
+                closestCrest.x,
+                closestCrest.y - 20,
+                visual_vp_length,
+                COL.crest,
+                "v",
+                "p",
+              );
+            }
+          } else {
+            let labelText = isZitterbewegung
+              ? "Standing Wave (Local vp = c)"
+              : "Standing Wave (vp = \u221E)";
+            ctx.font = "italic 15px Georgia, serif";
+            ctx.textAlign = "center";
+            let tw = ctx.measureText(labelText).width;
+
+            ctx.fillStyle = COL.pillBg;
+            ctx.beginPath();
+            ctx.roundRect(
+              currentCenter - tw / 2 - 10,
+              centerY - amplitude - 38,
+              tw + 20,
+              28,
+              4,
+            );
+            ctx.fill();
+            ctx.strokeStyle = COL.pillBorder;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = COL.crest;
+            ctx.fillText(labelText, currentCenter, centerY - amplitude - 20);
+            ctx.textAlign = "left";
+          }
+
+          // --- 3f. INTERNAL CLOCK ---
+          let clockRadius = 55;
+          let clockY = particleCenterY + 210;
+
+          ctx.beginPath();
+          ctx.arc(particleCenter, clockY, clockRadius, 0, Math.PI * 2);
+          ctx.fillStyle = COL.canvasBg;
+          ctx.fill();
+          ctx.strokeStyle = COL.clock;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.strokeStyle = COL.clock;
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          for (let i = 0; i < 12; i++) {
+            if (i % 3 === 0) continue;
+            let angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+            ctx.moveTo(
+              particleCenter + (clockRadius - 6) * Math.cos(angle),
+              clockY + (clockRadius - 6) * Math.sin(angle),
+            );
+            ctx.lineTo(
+              particleCenter + (clockRadius - 2) * Math.cos(angle),
+              clockY + (clockRadius - 2) * Math.sin(angle),
+            );
+          }
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 12; i += 3) {
+            let angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+            ctx.moveTo(
+              particleCenter + (clockRadius - 10) * Math.cos(angle),
+              clockY + (clockRadius - 10) * Math.sin(angle),
+            );
+            ctx.lineTo(
+              particleCenter + (clockRadius - 2) * Math.cos(angle),
+              clockY + (clockRadius - 2) * Math.sin(angle),
+            );
+          }
+          ctx.stroke();
+
+          let clockAngle = -2 * Math.PI * clockTicks;
+          let handX = particleCenter + (clockRadius - 8) * Math.sin(clockAngle);
+          let handY = clockY - (clockRadius - 8) * Math.cos(clockAngle);
+
+          ctx.beginPath();
+          ctx.moveTo(particleCenter, clockY);
+          ctx.lineTo(handX, handY);
+          ctx.strokeStyle = COL.clock;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(particleCenter, clockY, 5, 0, Math.PI * 2);
+          ctx.fillStyle = COL.clock;
+          ctx.fill();
+
+          ctx.fillStyle = COL.clock;
+          ctx.font = "italic 13px Georgia, serif";
+          ctx.textAlign = "center";
+          ctx.fillText("f", particleCenter - 5, clockY + clockRadius + 18);
+          ctx.font = "10px Georgia, serif";
+          ctx.fillText("clock", particleCenter + 8, clockY + clockRadius + 20);
+          ctx.textAlign = "left";
+
+          // --- 3g. PHASE HARMONY LINE ---
+          let particlePhase =
+            k * ((particleCenter - currentCenter) / pixelsPerUnit) -
+            2 * Math.PI * clockTicks;
+          let waveHeightAtParticle =
+            centerY -
+            Math.exp(
+              -((particleCenter - currentCenter) ** 2) / (2 * sigma * sigma),
+            ) *
+              Math.cos(particlePhase) *
+              amplitude;
+
+          ctx.beginPath();
+          ctx.moveTo(particleCenter, waveHeightAtParticle);
+          ctx.lineTo(particleCenter, handY);
+          ctx.strokeStyle = COL.sync;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = COL.syncDot;
+          ctx.beginPath();
+          ctx.arc(particleCenter, waveHeightAtParticle, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(particleCenter, handY, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          const labelY = (waveHeightAtParticle + handY) / 2;
+
+          ctx.fillStyle = COL.pillBg;
+          ctx.beginPath();
+          ctx.roundRect(
+            particleCenter + 12,
+            labelY - 11,
+            harmonyTextWidth + 14,
+            22,
+            4,
+          );
+          ctx.fill();
+          ctx.strokeStyle = COL.pillBorder;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.fillStyle = COL.clock;
+          ctx.textAlign = "left";
+          ctx.font = "bold 12px Georgia, serif";
+          ctx.fillText("Phase Harmony", particleCenter + 19, labelY + 5);
+        });
+
+        // --- 4. OBSERVER OVERLAY ---
+        const camText =
+          frameOfReference === "electron"
+            ? "Observer: Riding with the Macroscopic Electron (lab contracts & moves)"
+            : "Observer: Stationary in the Lab (electron contracts & moves)";
+
+        if (camText !== cachedCamText) {
+          ctx.font = "bold 14px system-ui, sans-serif";
+          cachedCamTextWidth = ctx.measureText(camText).width;
+          cachedCamText = camText;
+        }
+
+        ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillStyle = COL.pillBg;
+        ctx.beginPath();
+        ctx.roundRect(14, 14, cachedCamTextWidth + 18, 30, 4);
+        ctx.fill();
+        ctx.strokeStyle = COL.pillBorder;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = COL.overlayText;
+        ctx.fillText(camText, 23, 34);
+
+        requestAnimationFrame(draw);
+      }
+
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

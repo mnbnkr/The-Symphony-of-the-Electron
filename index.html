@@ -519,10 +519,11 @@
               <div class="info-capsule">
                 ?
                 <div class="info-tooltip">
-                  Toggles Dirac's quantum jitter. It physically vibrates the
-                  particle at the speed of light (c) and updates the dashboard
-                  to reveal the true local velocity and local phase velocity,
-                  rather than macroscopic averages.
+                  The electron's massless core always circulates at c in a
+                  tight loop, even at macroscopic rest. This intrinsic
+                  trembling (Zitterbewegung) is the physical basis of the
+                  internal clock. Toggle to see local velocity and phase
+                  velocity at the particle scale.
                 </div>
               </div>
             </button>
@@ -603,7 +604,7 @@
               Wave Freq. (<i>f<sub>wave</sub></i
               >)
             </div>
-            <div class="stat-value c-wave-text" id="fwaveVal">4.36 Hz</div>
+            <div class="stat-value c-wave-text" id="fwaveVal">4.62 Hz</div>
             <div class="stat-math" id="math-fwave">
               <i>f<sub>wave</sub> = f<sub>0</sub> &times; &gamma;</i>
             </div>
@@ -613,14 +614,14 @@
               Clock Freq. (<i>f<sub>clock</sub></i
               >)
             </div>
-            <div class="stat-value c-clock-text" id="fclockVal">3.67 Hz</div>
+            <div class="stat-value c-clock-text" id="fclockVal">3.46 Hz</div>
             <div class="stat-math" id="math-fclock">
               <i>f<sub>clock</sub> = f<sub>0</sub> / &gamma;</i>
             </div>
           </div>
           <div class="stat-card c-sigma">
             <div class="stat-title">Electron Width (&sigma;)</div>
-            <div class="stat-value c-sigma-text" id="sigmaVal">91.6%</div>
+            <div class="stat-value c-sigma-text" id="sigmaVal">86.6%</div>
             <div class="stat-math" id="math-sigma">
               <i>&sigma; = &sigma;<sub>0</sub> / &gamma;</i>
             </div>
@@ -730,6 +731,12 @@
       const pixelsPerUnit = 250;
       const CUT_OFF = 520; // Increased for a smoother, longer fade out
       const COPY_SPACING = 1100; // Increased to space the wave centers further apart
+
+      // Pre-allocated crest tracking (eliminates per-frame GC pressure)
+      const MAX_CRESTS = 50;
+      const crestPool = new Array(MAX_CRESTS);
+      for (let i = 0; i < MAX_CRESTS; i++) crestPool[i] = { x: 0, y: 0, env: 0 };
+      let crestCount = 0;
 
       // Fixed Logical Coordinate System (Ensures perfect proportional scaling)
       const BASE_WIDTH = 1200;
@@ -1021,19 +1028,20 @@
           envCache[cacheIdx++] = Math.exp(-(dx * dx) / (2 * sigma * sigma));
         }
 
-        drawCenters.forEach((currentCenter) => {
+        for (let ci = 0; ci < drawCenters.length; ci++) {
+          const currentCenter = drawCenters[ci];
           let zbX = 0;
           let zbY = 0;
           if (isZitterbewegung) {
             const zbPhase = 4 * Math.PI * clockTicks;
-            zbX = Math.cos(zbPhase) * 2.5;
-            zbY = Math.sin(zbPhase) * 2.5;
+            zbX = Math.cos(zbPhase) * 3.5;
+            zbY = Math.sin(zbPhase) * 3.5;
           }
 
           let particleCenter = currentCenter + zbX;
           let particleCenterY = centerY + zbY;
 
-          // --- 3a. ENVELOPE ---
+          // --- 3a. ENVELOPE (stays at macroscopic center, not ZB-offset) ---
           ctx.strokeStyle = COL.envelope;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([8, 6]);
@@ -1041,9 +1049,9 @@
           ctx.beginPath();
           cacheIdx = 0;
           for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
-            let x = particleCenter + dx;
+            let x = currentCenter + dx;
             let env = envCache[cacheIdx++];
-            let y = particleCenterY - env * amplitude;
+            let y = centerY - env * amplitude;
             if (dx === -CUT_OFF) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
@@ -1052,9 +1060,9 @@
           ctx.beginPath();
           cacheIdx = 0;
           for (let dx = -CUT_OFF; dx <= CUT_OFF; dx += 2) {
-            let x = particleCenter + dx;
+            let x = currentCenter + dx;
             let env = envCache[cacheIdx++];
-            let y = particleCenterY + env * amplitude;
+            let y = centerY + env * amplitude;
             if (dx === -CUT_OFF) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
@@ -1079,8 +1087,7 @@
 
           // --- 3c. PHASE CRESTS ---
           if (frameOfReference === "lab") {
-            let crestPositions = [];
-            ctx.fillStyle = COL.crest;
+            crestCount = 0;
 
             let n_min_crest = Math.floor(
               ((k * -CUT_OFF) / pixelsPerUnit - 2 * Math.PI * clockTicks) /
@@ -1091,6 +1098,9 @@
                 (2 * Math.PI),
             );
 
+            // Batch all crest dots into a single path (reduces Firefox draw calls)
+            ctx.fillStyle = COL.crest;
+            ctx.beginPath();
             for (let n = n_min_crest; n <= n_max_crest; n++) {
               let dx =
                 (pixelsPerUnit * (2 * Math.PI * n + 2 * Math.PI * clockTicks)) /
@@ -1098,37 +1108,41 @@
               if (dx >= -CUT_OFF && dx <= CUT_OFF) {
                 let env = Math.exp(-(dx * dx) / (2 * sigma * sigma));
 
-                if (env > 0.05) {
+                if (env > 0.05 && crestCount < MAX_CRESTS) {
                   let x_screen = currentCenter + dx;
                   let y_screen = centerY - env * amplitude;
 
-                  ctx.beginPath();
+                  ctx.moveTo(x_screen + 4.5, y_screen);
                   ctx.arc(x_screen, y_screen, 4.5, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.strokeStyle = COL.crestAlpha;
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
 
-                  crestPositions.push({ x: x_screen, y: y_screen, env: env });
+                  crestPool[crestCount].x = x_screen;
+                  crestPool[crestCount].y = y_screen;
+                  crestPool[crestCount].env = env;
+                  crestCount++;
                 }
               }
             }
+            ctx.fill();
+            ctx.strokeStyle = COL.crestAlpha;
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
             // --- 3d. WAVELENGTH BRACKET ---
-            if (crestPositions.length >= 2) {
-              let bestPair = null;
+            if (crestCount >= 2) {
+              let bestIdx = -1;
               let bestDist = Infinity;
-              for (let i = 0; i < crestPositions.length - 1; i++) {
-                let midX = (crestPositions[i].x + crestPositions[i + 1].x) / 2;
+              for (let i = 0; i < crestCount - 1; i++) {
+                let midX = (crestPool[i].x + crestPool[i + 1].x) / 2;
                 let dist = Math.abs(midX - currentCenter);
                 if (dist < bestDist) {
                   bestDist = dist;
-                  bestPair = [crestPositions[i], crestPositions[i + 1]];
+                  bestIdx = i;
                 }
               }
 
-              if (bestPair) {
-                let [c1, c2] = bestPair;
+              if (bestIdx >= 0) {
+                let c1 = crestPool[bestIdx];
+                let c2 = crestPool[bestIdx + 1];
                 let spacing = c2.x - c1.x;
 
                 if (spacing > 35 && spacing < 400) {
@@ -1194,22 +1208,22 @@
               );
             }
 
-            if (crestPositions.length > 0) {
-              let closestCrest = crestPositions[0];
-              let minDist = Math.abs(closestCrest.x - currentCenter);
-              for (let i = 1; i < crestPositions.length; i++) {
-                let dist = Math.abs(crestPositions[i].x - currentCenter);
+            if (crestCount > 0) {
+              let closestIdx = 0;
+              let minDist = Math.abs(crestPool[0].x - currentCenter);
+              for (let i = 1; i < crestCount; i++) {
+                let dist = Math.abs(crestPool[i].x - currentCenter);
                 if (dist < minDist) {
                   minDist = dist;
-                  closestCrest = crestPositions[i];
+                  closestIdx = i;
                 }
               }
               let visual_vp_length = isZitterbewegung
                 ? 150
                 : Math.min((1 / v) * 150, 350);
               drawArrow(
-                closestCrest.x,
-                closestCrest.y - 20,
+                crestPool[closestIdx].x,
+                crestPool[closestIdx].y - 20,
                 visual_vp_length,
                 COL.crest,
                 "v",
@@ -1286,7 +1300,9 @@
           }
           ctx.stroke();
 
-          let clockAngle = -2 * Math.PI * clockTicks;
+          // Clock phase tracks wave at particle's actual position (ZB-adjusted)
+          let zbPhaseAdj = k * ((particleCenter - currentCenter) / pixelsPerUnit);
+          let clockAngle = -2 * Math.PI * clockTicks + zbPhaseAdj;
           let handX = particleCenter + (clockRadius - 8) * Math.sin(clockAngle);
           let handY = clockY - (clockRadius - 8) * Math.cos(clockAngle);
 
@@ -1331,12 +1347,19 @@
           ctx.stroke();
           ctx.setLineDash([]);
 
-          ctx.fillStyle = COL.syncDot;
+          // Particle dot on wave (larger, distinct from clock dot)
           ctx.beginPath();
-          ctx.arc(particleCenter, waveHeightAtParticle, 5, 0, Math.PI * 2);
+          ctx.arc(particleCenter, waveHeightAtParticle, 7, 0, Math.PI * 2);
+          ctx.fillStyle = COL.vg;
           ctx.fill();
+          ctx.strokeStyle = COL.syncDot;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Clock-hand dot
           ctx.beginPath();
           ctx.arc(particleCenter, handY, 5, 0, Math.PI * 2);
+          ctx.fillStyle = COL.syncDot;
           ctx.fill();
 
           const labelY = (waveHeightAtParticle + handY) / 2;
@@ -1359,7 +1382,7 @@
           ctx.textAlign = "left";
           ctx.font = "bold 12px Georgia, serif";
           ctx.fillText("Phase Harmony", particleCenter + 19, labelY + 5);
-        });
+        }
 
         // --- 4. OBSERVER OVERLAY ---
         let camText = "";

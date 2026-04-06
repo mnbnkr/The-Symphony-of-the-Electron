@@ -131,7 +131,7 @@
         transition:
           background 0.3s,
           border-color 0.3s;
-        aspect-ratio: 2 / 1; /* Maintains perfect scaling proportions */
+        aspect-ratio: 2 / 1;
       }
 
       canvas {
@@ -189,7 +189,6 @@
       .toggle-group {
         display: flex;
         border-radius: 4px;
-        /* Removed overflow: hidden so the tooltip can escape the container */
         border: 1px solid var(--border);
         font-family:
           system-ui,
@@ -217,8 +216,8 @@
 
       #zbText {
         display: inline-block;
-        width: 155px; /* Locks the exact text width so ON/OFF never shifts layout */
-        text-align: left; /* Anchors the text so it doesn't wiggle inside the button */
+        width: 155px;
+        text-align: left;
       }
 
       .info-capsule {
@@ -291,7 +290,7 @@
       }
 
       .toggle-btn.zb-btn {
-        min-width: 210px; /* Prevents button from changing size when text changes */
+        min-width: 210px;
       }
 
       .toggle-btn:hover {
@@ -384,11 +383,12 @@
         max-width: 100%;
         overflow-x: auto;
         white-space: nowrap;
-        scrollbar-width: none; /* Firefox */
+        scrollbar-width: none;
+        letter-spacing: 0.02em;
       }
 
       .stat-math::-webkit-scrollbar {
-        display: none; /* Chrome */
+        display: none;
       }
 
       .c-vp-text {
@@ -436,6 +436,78 @@
         font-size: 1.05rem;
       }
 
+      /* Expandable Advanced Section Styles */
+      details.advanced-desc {
+        margin-top: 24px;
+        padding: 18px 24px;
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        transition: background 0.3s;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        details.advanced-desc {
+          background: rgba(255, 255, 255, 0.02);
+        }
+      }
+
+      summary.advanced-summary {
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text);
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.05rem;
+      }
+
+      summary.advanced-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      summary.advanced-summary::before {
+        content: "▶";
+        font-size: 0.75em;
+        color: var(--wave-color);
+        transition: transform 0.2s ease;
+      }
+
+      details[open] summary.advanced-summary::before {
+        transform: rotate(90deg);
+      }
+
+      .advanced-content {
+        margin-top: 16px;
+        font-size: 1rem;
+        line-height: 1.7;
+        color: var(--text-muted);
+        border-top: 1px dashed var(--border);
+        padding-top: 16px;
+      }
+
+      .advanced-content p {
+        margin-bottom: 12px;
+      }
+
+      .advanced-content p:last-child {
+        margin-bottom: 0;
+      }
+
+      .equation-box {
+        width: fit-content;
+        margin: 20px auto;
+        font-family: "Times New Roman", Times, serif;
+        background: var(--math-bg);
+        padding: 16px 32px;
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 1.3rem;
+        letter-spacing: 0.06em;
+        border: 1px solid var(--border);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      }
       i {
         font-family: "Times New Roman", Times, serif;
         font-style: italic;
@@ -445,7 +517,6 @@
         font-size: 0.75em;
       }
 
-      /* Mobile & Responsive Adjustments */
       @media (max-width: 768px) {
         body {
           padding: 20px 12px;
@@ -458,7 +529,7 @@
           margin-bottom: 24px;
         }
         .canvas-container {
-          aspect-ratio: 4 / 3; /* Slightly taller aspect ratio on mobile for better visibility */
+          aspect-ratio: 4 / 3;
         }
         .control-row {
           flex-direction: column;
@@ -475,7 +546,7 @@
           font-size: 0.85rem;
         }
         .toggle-btn.zb-btn {
-          min-width: auto; /* Let flex handle it on mobile */
+          min-width: auto;
         }
         .slider-group {
           width: 100%;
@@ -491,6 +562,9 @@
         .physics-note {
           font-size: 0.95rem;
         }
+        details.advanced-desc {
+          padding: 16px;
+        }
       }
     </style>
   </head>
@@ -498,7 +572,7 @@
     <h1>The Symphony of the Electron</h1>
     <hr class="title-rule" />
     <div class="subtitle">
-      De Broglie's Phase Harmony & True Lorentz Transformations
+      De Broglie's Phase Harmony &amp; True Lorentz Transformations
     </div>
 
     <div class="app-container">
@@ -519,11 +593,11 @@
               <div class="info-capsule">
                 ?
                 <div class="info-tooltip">
-                  The electron's massless core always circulates at c in a
-                  tight loop, even at macroscopic rest. This intrinsic
-                  trembling (Zitterbewegung) is the physical basis of the
-                  internal clock. Toggle to see local velocity and phase
-                  velocity at the particle scale.
+                  The electron's massless core always circulates at c in a tight
+                  loop, even at macroscopic rest. This intrinsic trembling
+                  (Zitterbewegung) is the physical basis of the internal clock.
+                  Toggle to see local velocity and phase velocity at the
+                  particle scale.
                 </div>
               </div>
             </button>
@@ -670,9 +744,55 @@
           wave (pulsing all at once, rather than traveling), while the localized
           physical particle always has an instantaneous velocity of <i>c</i>.
           Therefore, its true local phase velocity is always exactly
-          <i>c</i> (<i>v<sub>p</sub> = c&sup2;/c = c</i>). Toggle Zitterbewegung
-          to see the math physically update!
+          <i>c</i> (<i>v<sub>p</sub> = c&sup2;/c = c</i>). <br /><br />
+          <em
+            >Notice how the internal clock slows down to a near-halt when
+            jittering forward at high velocities, but it never runs backward.
+            The particle can never overtake its own superluminal wave crests!
+            Furthermore, observe how the circular Zitterbewegung motion flattens
+            into an ellipse in the lab frame due to Lorentz contraction.</em
+          >
         </div>
+
+        <details class="advanced-desc">
+          <summary class="advanced-summary">
+            Mathematical Appendix: The Mechanics of Phase Harmony
+          </summary>
+          <div class="advanced-content">
+            <p>
+              How does the electron stay in sync with a wave that travels faster
+              than light (<i>v<sub>p</sub> = c&sup2;/v</i>)? The secret lies in
+              the relativity of simultaneity.
+            </p>
+            <p>
+              The matter wave's phase at any position <i>x</i> and time
+              <i>t</i> is defined by the Lorentz transformation of the
+              electron's internal clock:
+            </p>
+
+            <div class="equation-box">
+              <i
+                >&Phi;(x, t) = 2&pi;f<sub>0</sub>&gamma;(t &minus;
+                vx/c&sup2;)</i
+              >
+            </div>
+
+            <p>
+              Because the electron's core is not static but jitters at the speed
+              of light (Zitterbewegung), its local position <i>x</i> is
+              constantly oscillating. When the electron jitters forward, the
+              <i>&minus;vx/c&sup2;</i> term dynamically reduces the phase. This
+              perfectly counteracts the particle's rapid forward motion.
+            </p>
+            <p>
+              As you can observe at high velocities (e.g., <i>v = 0.95c</i>),
+              the internal clock slows to a near halt during the forward jitter,
+              but it <strong>never runs backward</strong>. The spatial jitter
+              combined with relativistic time desynchronization ensures the
+              particle is always exactly locked onto its guiding wave.
+            </p>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -706,7 +826,8 @@
 
       // Physics State Accumulators
       let lastTime = 0;
-      let clockTicks = 0;
+      let clockTicks = 0; // Macroscopic proper time (governs the wave)
+      let particleTau = 0; // Exact instantaneous proper time (governs ZB)
       let electronPos = -1;
       let gridPhaseCenter = 0;
 
@@ -721,7 +842,7 @@
       let cachedCamTextWidth = 0;
       let harmonyTextWidth = 0;
       const drawCenters = [];
-      const envCache = new Float32Array(521); // Expanded to fit the new CUT_OFF
+      const envCache = new Float32Array(521);
 
       // Physics Constants
       const f_0 = 4.0;
@@ -729,16 +850,17 @@
       const base_sigma = 180;
       const base_grid = 150;
       const pixelsPerUnit = 250;
-      const CUT_OFF = 520; // Increased for a smoother, longer fade out
-      const COPY_SPACING = 1100; // Increased to space the wave centers further apart
+      const CUT_OFF = 520;
+      const COPY_SPACING = 1100;
 
-      // Pre-allocated crest tracking (eliminates per-frame GC pressure)
+      // Pre-allocated crest tracking
       const MAX_CRESTS = 50;
       const crestPool = new Array(MAX_CRESTS);
-      for (let i = 0; i < MAX_CRESTS; i++) crestPool[i] = { x: 0, y: 0, env: 0 };
+      for (let i = 0; i < MAX_CRESTS; i++)
+        crestPool[i] = { x: 0, y: 0, env: 0 };
       let crestCount = 0;
 
-      // Fixed Logical Coordinate System (Ensures perfect proportional scaling)
+      // Fixed Logical Coordinate System
       const BASE_WIDTH = 1200;
 
       // Dynamic Canvas Colors
@@ -935,26 +1057,40 @@
           electronPos = cx;
         }
 
-        let current_fclock, k, sigma, current_grid_spacing, grid_v, elec_v;
+        let k, sigma, current_grid_spacing, grid_v, elec_v;
 
         if (frameOfReference === "lab") {
           elec_v = v;
           grid_v = 0;
           current_grid_spacing = base_grid;
           sigma = base_sigma / gamma;
-          current_fclock = f_0 / gamma;
           k = 2 * Math.PI * gamma * v * f_0;
+
+          // Integrate exact proper time for Zitterbewegung phase
+          // Relativity of simultaneity means proper time advances at a variable rate
+          // depending on the particle's instantaneous velocity in the lab frame.
+          let sub_steps = 25;
+          let ddt = dt / sub_steps;
+          for (let i = 0; i < sub_steps; i++) {
+            let dtau =
+              ddt /
+              (gamma * (1 - v * Math.sin(4 * Math.PI * f_0 * particleTau)));
+            particleTau += dtau;
+          }
+          clockTicks += (f_0 / gamma) * dt; // Macroscopic wave time
         } else {
           elec_v = 0;
           grid_v = -v;
           current_grid_spacing = base_grid / gamma;
           sigma = base_sigma;
-          current_fclock = f_0;
           k = 0;
+
+          particleTau += dt;
+          clockTicks += f_0 * dt;
         }
 
-        clockTicks += current_fclock * dt;
         if (clockTicks > 10000) clockTicks -= 10000;
+        if (particleTau > 10000) particleTau -= 10000;
 
         electronPos += elec_v * dt * pixelsPerUnit;
         electronPos = electronPos % COPY_SPACING;
@@ -1032,10 +1168,20 @@
           const currentCenter = drawCenters[ci];
           let zbX = 0;
           let zbY = 0;
+
           if (isZitterbewegung) {
-            const zbPhase = 4 * Math.PI * clockTicks;
-            zbX = Math.cos(zbPhase) * 3.5;
-            zbY = Math.sin(zbPhase) * 3.5;
+            const zbPhase = 4 * Math.PI * f_0 * particleTau;
+
+            // The physical ZB amplitude in logical pixels is R_0 = c / omega_zb.
+            // With c=1 and omega_zb = 4 * pi * f_0, R_0 = pixelsPerUnit / (16 * Math.PI).
+            const r0 = pixelsPerUnit / (16 * Math.PI);
+
+            // Apply Lorentz contraction to the longitudinal (X) axis in the lab frame
+            const zbAmpX = frameOfReference === "lab" ? r0 / gamma : r0;
+            const zbAmpY = r0; // Transverse axis does not contract
+
+            zbX = Math.cos(zbPhase) * zbAmpX;
+            zbY = Math.sin(zbPhase) * zbAmpY;
           }
 
           let particleCenter = currentCenter + zbX;
@@ -1098,7 +1244,6 @@
                 (2 * Math.PI),
             );
 
-            // Batch all crest dots into a single path (reduces Firefox draw calls)
             ctx.fillStyle = COL.crest;
             ctx.beginPath();
             for (let n = n_min_crest; n <= n_max_crest; n++) {
@@ -1301,7 +1446,8 @@
           ctx.stroke();
 
           // Clock phase tracks wave at particle's actual position (ZB-adjusted)
-          let zbPhaseAdj = k * ((particleCenter - currentCenter) / pixelsPerUnit);
+          let zbPhaseAdj =
+            k * ((particleCenter - currentCenter) / pixelsPerUnit);
           let clockAngle = -2 * Math.PI * clockTicks + zbPhaseAdj;
           let handX = particleCenter + (clockRadius - 8) * Math.sin(clockAngle);
           let handY = clockY - (clockRadius - 8) * Math.cos(clockAngle);

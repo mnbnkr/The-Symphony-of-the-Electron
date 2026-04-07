@@ -853,6 +853,9 @@
       const CUT_OFF = 520;
       const COPY_SPACING = 1100;
 
+      // TUNE THIS: Shifts the visual timing of the ZB jerking (e.g., Math.PI / 4 = 45 degrees, or 1:30 on the clock)
+      const ZB_PHASE_OFFSET = Math.PI / 2;
+
       // Pre-allocated crest tracking
       const MAX_CRESTS = 50;
       const crestPool = new Array(MAX_CRESTS);
@@ -1064,15 +1067,19 @@
           // Integrate macroscopic wave time
           clockTicks += (f_0 / gamma) * dt;
 
-          // Solve exact analytical proper-time inversion via Newton-Raphson to completely eliminate numeric drift
-          let target = clockTicks + v / (4 * Math.PI);
+          // Solve exact analytical proper-time inversion via Newton-Raphson (Now with tunable Phase Offset)
+          let target =
+            clockTicks + (v / (4 * Math.PI)) * Math.cos(ZB_PHASE_OFFSET);
           let x = f_0 * particleTau;
           if (Math.abs(x - target) > 1) x = target; // fallback initial guess
 
           for (let iter = 0; iter < 5; iter++) {
             let f =
-              x + (v / (4 * Math.PI)) * Math.cos(4 * Math.PI * x) - target;
-            let df = 1 - v * Math.sin(4 * Math.PI * x);
+              x +
+              (v / (4 * Math.PI)) *
+                Math.cos(4 * Math.PI * x + ZB_PHASE_OFFSET) -
+              target;
+            let df = 1 - v * Math.sin(4 * Math.PI * x + ZB_PHASE_OFFSET);
             x = x - f / df;
           }
           particleTau = x / f_0;
@@ -1168,7 +1175,8 @@
           let zbY = 0;
 
           if (isZitterbewegung) {
-            const zbPhase = 4 * Math.PI * f_0 * particleTau;
+            // Apply the user-defined phase offset here
+            const zbPhase = 4 * Math.PI * f_0 * particleTau + ZB_PHASE_OFFSET;
 
             // The physical ZB amplitude in logical pixels is R_0 = c / omega_zb.
             // With c=1 and omega_zb = 4 * pi * f_0, R_0 = pixelsPerUnit / (16 * Math.PI).

@@ -575,7 +575,7 @@
       De Broglie's Phase Harmony &amp; True Lorentz Transformations
     </div>
 
-    <div class="app-container">
+    <main class="app-container">
       <div class="canvas-container">
         <canvas id="simCanvas"></canvas>
       </div>
@@ -590,16 +590,22 @@
           <div class="toggle-group">
             <button class="toggle-btn active zb-btn" id="btnZb">
               <span id="zbText">Zitterbewegung: ON</span>
-              <div class="info-capsule">
+              <span
+                class="info-capsule"
+                onclick="
+                  event.preventDefault();
+                  event.stopPropagation();
+                "
+              >
                 ?
-                <div class="info-tooltip">
+                <span class="info-tooltip">
                   The electron's massless core always circulates at c in a tight
                   loop, even at macroscopic rest. This intrinsic trembling
                   (Zitterbewegung) is the physical basis of the internal clock.
                   <br />In Rest Frame, toggle to see local velocity and phase
                   velocity at the particle scale
-                </div>
-              </div>
+                </span>
+              </span>
             </button>
           </div>
 
@@ -794,7 +800,7 @@
           </div>
         </details>
       </div>
-    </div>
+    </main>
 
     <script>
       const canvas = document.getElementById("simCanvas");
@@ -853,14 +859,21 @@
       const CUT_OFF = 520;
       const COPY_SPACING = 1100;
 
+      // Pre-allocated Arrays for GC stability
+      const DASH_ENV = [8, 6];
+      const DASH_ARROW = [4, 4];
+      const DASH_SYNC = [5, 5];
+      const DASH_NONE = [];
+
       // TUNE THIS: Shifts the visual timing of the ZB jerking (e.g., Math.PI / 4 = 45 degrees, or 1:30 on the clock)
       const ZB_PHASE_OFFSET = Math.PI / 2;
 
       // Pre-allocated crest tracking
       const MAX_CRESTS = 50;
       const crestPool = new Array(MAX_CRESTS);
-      for (let i = 0; i < MAX_CRESTS; i++)
+      for (let i = 0; i < MAX_CRESTS; i++) {
         crestPool[i] = { x: 0, y: 0, env: 0 };
+      }
       let crestCount = 0;
 
       // Fixed Logical Coordinate System
@@ -928,8 +941,10 @@
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
+      const textMetricsCache = {};
+
       function drawArrow(x, y, length, color, baseText, subText) {
-        const headlen = 10;
+        const headlen = Math.min(10, length);
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x + length, y);
@@ -940,10 +955,17 @@
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        ctx.font = "italic bold 15px Georgia, serif";
-        const baseWidth = ctx.measureText(baseText).width;
-        ctx.font = "bold 11px Georgia, serif";
-        const subWidth = ctx.measureText(subText).width;
+        const cacheKey = baseText + "_" + subText;
+        if (!textMetricsCache[cacheKey]) {
+          ctx.font = "italic bold 15px Georgia, serif";
+          const bW = ctx.measureText(baseText).width;
+          ctx.font = "bold 11px Georgia, serif";
+          const sW = ctx.measureText(subText).width;
+          textMetricsCache[cacheKey] = { base: bW, sub: sW };
+        }
+
+        const baseWidth = textMetricsCache[cacheKey].base;
+        const subWidth = textMetricsCache[cacheKey].sub;
         const totalWidth = baseWidth + subWidth;
 
         const pillX = x + length + 10;
@@ -1147,16 +1169,16 @@
         ctx.stroke();
 
         // --- 3. ELECTRON COPIES ---
-        drawCenters.length = 0;
+        let drawCentersCount = 0;
         if (frameOfReference === "lab") {
-          drawCenters.push(
-            electronPos - COPY_SPACING,
-            electronPos,
-            electronPos + COPY_SPACING,
-            electronPos + 2 * COPY_SPACING,
-          );
+          drawCenters[0] = electronPos - COPY_SPACING;
+          drawCenters[1] = electronPos;
+          drawCenters[2] = electronPos + COPY_SPACING;
+          drawCenters[3] = electronPos + 2 * COPY_SPACING;
+          drawCentersCount = 4;
         } else {
-          drawCenters.push(cx);
+          drawCenters[0] = cx;
+          drawCentersCount = 1;
         }
 
         if (harmonyTextWidth === 0) {
@@ -1169,7 +1191,7 @@
           envCache[cacheIdx++] = Math.exp(-(dx * dx) / (2 * sigma * sigma));
         }
 
-        for (let ci = 0; ci < drawCenters.length; ci++) {
+        for (let ci = 0; ci < drawCentersCount; ci++) {
           const currentCenter = drawCenters[ci];
           let zbX = 0;
           let zbY = 0;
@@ -1196,7 +1218,7 @@
           // --- 3a. ENVELOPE (stays at macroscopic center, not ZB-offset) ---
           ctx.strokeStyle = COL.envelope;
           ctx.lineWidth = 1.5;
-          ctx.setLineDash([8, 6]);
+          ctx.setLineDash(DASH_ENV);
 
           ctx.beginPath();
           cacheIdx = 0;
@@ -1219,7 +1241,7 @@
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.setLineDash(DASH_NONE);
 
           // --- 3b. CARRIER WAVE ---
           ctx.beginPath();
@@ -1335,9 +1357,9 @@
             ctx.lineTo(currentCenter, centerY - amplitude - 50);
             ctx.strokeStyle = COL.arrowAlpha;
             ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 4]);
+            ctx.setLineDash(DASH_ARROW);
             ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.setLineDash(DASH_NONE);
 
             // Always display macro arrow in Lab Frame
             drawArrow(
@@ -1376,7 +1398,12 @@
               : "Standing Wave (Vp = \u221E)";
             ctx.font = "italic 15px Georgia, serif";
             ctx.textAlign = "center";
-            let tw = ctx.measureText(labelText).width;
+
+            const tk = labelText;
+            if (!textMetricsCache[tk]) {
+              textMetricsCache[tk] = ctx.measureText(labelText).width;
+            }
+            let tw = textMetricsCache[tk];
 
             ctx.fillStyle = COL.pillBg;
             ctx.beginPath();
@@ -1504,9 +1531,9 @@
           ctx.lineTo(particleCenter, handY);
           ctx.strokeStyle = COL.sync;
           ctx.lineWidth = 1.5;
-          ctx.setLineDash([5, 5]);
+          ctx.setLineDash(DASH_SYNC);
           ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.setLineDash(DASH_NONE);
 
           let localScaleX = frameOfReference === "lab" ? 1 / gamma : 1;
 
